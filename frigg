@@ -29,9 +29,6 @@ email = config.get('Aegir', 'email')
 domain = config.get('Aegir', 'domain')
 version = config.get('Aegir', 'version')
 
-if version != "HEAD":
-	version = 'provision-' + version
-
 def dependency_check():
 	try:
 		open(os.path.expanduser("~/.ssh/id_rsa.pub")).read()
@@ -74,17 +71,19 @@ def main():
 	dispatch = [
 		SSHKeyDeployment(open(os.path.expanduser("~/.ssh/id_rsa.pub")).read()),
 		ScriptDeployment("apt-get update"),
+		ScriptDeployment("apt-get install debian-archive-keyring"),
+		ScriptDeployment("apt-get update"),
 		ScriptDeployment("echo 'postfix postfix/main_mailer_type select Internet Site' | debconf-set-selections"),
 		ScriptDeployment("echo 'postfix postfix/mailname string $HOSTNAME' | debconf-set-selections"),
 		ScriptDeployment("echo 'postfix postfix/destinations string localhost.localdomain, localhost' | debconf-set-selections"),
 		ScriptDeployment("echo mysql-server mysql-server/root_password select %s | debconf-set-selections" % newpass),
 		ScriptDeployment("echo mysql-server mysql-server/root_password_again select %s | debconf-set-selections" % newpass ),
-		ScriptDeployment("apt-get -y --force-yes install apache2 php5 php5-cli php5-gd php5-mysql postfix mysql-server sudo rsync git-core unzip"),
+		ScriptDeployment("apt-get -y install apache2 php5 php5-cli php5-gd php5-mysql postfix mysql-server sudo rsync git-core unzip"),
 		ScriptDeployment("a2enmod rewrite"),
 		ScriptDeployment("ln -s /var/aegir/config/apache.conf /etc/apache2/conf.d/aegir.conf"),
 		ScriptDeployment("useradd -r -U -d /var/aegir -m -G www-data aegir"),
 		ScriptDeployment("echo 'aegir ALL=NOPASSWD: /usr/sbin/apache2ctl' >> /etc/sudoers"),
-		ScriptDeployment("wget -O /tmp/install.sh 'http://git.aegirproject.org/?p=provision.git;a=blob_plain;f=install.sh.txt;hb=%s'" % version),
+                ScriptDeployment("wget -O /tmp/install.sh 'http://drupalcode.org/project/provision.git/blob_plain/refs/tags/%s:/install.sh.txt'" % version),
 		ScriptDeployment("su - -s /bin/sh aegir -c 'sh /tmp/install.sh %s --client_email=%s --aegir_db_pass=%s --yes'" % tuple([ domain, email, newpass]))
 	]
 	msd = MultiStepDeployment(dispatch) 
